@@ -14,53 +14,21 @@
         </Grid.RowDefinitions>
 
         <CommandBar>
-            <AppBarButton Icon="Undo" Label="Undo" Click="AppBar_UndoButton_Click" />
-            <AppBarButton Icon="Redo" Label="Redo" Click="AppBar_RedoButton_Click" />
-            <AppBarSeparator />
             <AppBarButton Icon="Add" Label="New part" Click="AppBar_NewPartButton_Click" />
             <AppBarButton Icon="Back" Label="Previous part" Click="AppBar_PreviousPartButton_Click" />
             <AppBarButton Icon="Forward" Label="Next part" Click="AppBar_NextPartButton_Click" />
-            <AppBarSeparator />
-            <AppBarButton Icon="ZoomIn" Label="Zoom in" Click="AppBar_ZoomInButton_Click" />
-            <AppBarButton Icon="ZoomOut" Label="Zoom out" Click="AppBar_ZoomOutButton_Click" />
-
-            <CommandBar.SecondaryCommands>
-                <AppBarButton Label="Reset view" Click="AppBar_ResetViewButton_Click" />
-                <AppBarButton Label="Clear" Click="AppBar_ClearButton_Click" />
-                <AppBarButton Label="Convert" Click="AppBar_ConvertButton_Click" />
-                <AppBarSeparator />
-                <AppBarButton Icon="NewFolder" Label="New" Click="AppBar_NewPackageButton_Click" />
-                <AppBarButton Icon="OpenFile" Label="Open" Click="AppBar_OpenPackageButton_Click" />
-                <AppBarButton Icon="Save" Label="Save" Click="AppBar_SavePackageButton_Click" />
-                <AppBarButton Icon="SaveLocal" Label="Save as" Click="AppBar_SaveAsButton_Click" />
-                <AppBarSeparator />
-                <AppBarToggleButton Label="Smart Guide" IsChecked="True" Click="AppBar_EnableSmartGuide_Click" />
-            </CommandBar.SecondaryCommands>
+            <AppBarButton Label="Clear" Click="AppBar_ClearButton_Click" />
+            <AppBarButton Icon="NewFolder" Label="New" Click="AppBar_NewPackageButton_Click" />
+            <AppBarButton Icon="OpenFile" Label="Open" Click="AppBar_OpenPackageButton_Click" />
+            <AppBarButton Icon="Add" Label="Export" Click="AppBar_Export_Click" />
 
             <CommandBar.Content>
                 <TextBlock x:Name="Title" Margin="12,14" FontFamily="bold" FontSize="16" />
             </CommandBar.Content>
         </CommandBar>
 
-        <ToggleSwitch Grid.Row="1"
-                      Header="Active Pen"
-                      HorizontalAlignment="Left"
-                      IsOn="{x:Bind InkToolbar.IsActivePenEnabled, Mode=TwoWay}"
-                      Margin="12 0"
-                      OffContent="Off"
-                      OnContent="On" />
-
-        <Uc:InkToolbar x:Name="InkToolbar"
-                       Grid.Row="1"
-                       Background="Transparent"
-                       Editor="{x:Bind Editor, Mode=OneWay}"
-                       HorizontalAlignment="Center" />
-
         <Uc:EditorUserControl Grid.Row="2"
                               x:Name="UcEditor"
-                              Editor="{x:Bind Editor, Mode=OneWay}"
-                              Holding="UcEditor_Holding"
-                              PointerPressed="UcEditor_RightDown"
-                              RightTapped="UcEditor_RightTapped" />
+                              Editor="{x:Bind Editor, Mode=OneWay}" />
     </Grid>
 </Page>

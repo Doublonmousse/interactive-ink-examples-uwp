@@ -261,3 +261,7 @@ __pycache__/
 # Recognition Assets
 recognition-assets/
 INFO/
+.vscode/settings.json
+Demo/MyCertificate.cs
+GetStarted/MyCertificate.cs
+MyCertificate.cs

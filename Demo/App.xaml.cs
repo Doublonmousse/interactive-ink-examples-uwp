@@ -8,6 +8,7 @@ using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Navigation;
 
+
 namespace MyScript.IInk.Demo
 {
     sealed partial class App : Application
@@ -34,71 +35,15 @@ namespace MyScript.IInk.Demo
             engine.Configuration.SetString("content-package.temp-folder", tempFolder);
 
             EnableRawContentInteractivity(engine);
-            ConfigureDiagramInteractivity(engine);
-            EnableStrokePrediction(engine, true, 16);
-
-            // Configure multithreading for text recognition
-            SetMaxRecognitionThreadCount(engine, 1);
         }
 
         private static void EnableRawContentInteractivity(Engine engine)
         {
             // Display grid background
+            // issue : does not respect the background setting of the nebo file that's imported
             engine.Configuration.SetString("raw-content.line-pattern", "grid");
-
-            // Activate handwriting recognition for text only
-            engine.Configuration.SetBoolean("raw-content.recognition.text", true);
-            engine.Configuration.SetBoolean("raw-content.recognition.shape", false);
-
-            // Allow conversion of text
-            engine.Configuration.SetBoolean("raw-content.convert.text", true);
-            engine.Configuration.SetBoolean("raw-content.convert.node", false);
-            engine.Configuration.SetBoolean("raw-content.convert.edge", false);
-
-            // Allow converting shapes by holding the pen in position
-            engine.Configuration.SetBoolean("raw-content.convert.shape-on-hold", true);
-
-            // Configure shapes axis snapping
-            var shapeSnapAxis = new string[] { "triangle", "rectangle", "rhombus", "parallelogram", "ellipse" };
-            engine.Configuration.SetStringArray("raw-content.shape.snap-axis", shapeSnapAxis);
-
-            // Configure interactions
-            engine.Configuration.SetString("raw-content.interactive-items", "converted-or-mixed");
-            engine.Configuration.SetBoolean("raw-content.tap-interactions", true);
-            engine.Configuration.SetBoolean("raw-content.eraser.erase-precisely", false);
-            engine.Configuration.SetBoolean("raw-content.eraser.dynamic-radius", true);
-            engine.Configuration.SetBoolean("raw-content.auto-connection", true);
-            var policies = new string[] { "default-with-drag" };
-            engine.Configuration.SetStringArray("raw-content.edge.policy", policies);
-
-            // Show alignment guides and snap to them
-            engine.Configuration.SetBoolean("raw-content.guides.enable", true);
-            engine.Configuration.SetBoolean("raw-content.guides.snap", true);
-
-            // Allow gesture detection
-            var gestures = new string[] { "underline", "scratch-out", "strike-through" };
-            engine.Configuration.SetStringArray("raw-content.pen.gestures", gestures);
-
-            // Allow shape & image rotation
-            var rotations = new string[] { "shape", "image" };
-            engine.Configuration.SetStringArray("raw-content.rotation", rotations);
-        }
-
-        private static void ConfigureDiagramInteractivity(Engine engine)
-        {
-            // Allow shape rotation
-            var rotations = new string[] { "shape" };
-            engine.Configuration.SetStringArray("diagram.rotation", rotations);
-        }
-
-        private static void EnableStrokePrediction(Engine engine, bool enable, uint durationMs = 16)
-        {
-            engine.Configuration.SetBoolean("renderer.prediction.enable", enable);
-            engine.Configuration.SetNumber("renderer.prediction.duration", durationMs);
-        }
-        private static void SetMaxRecognitionThreadCount(Engine engine, uint threadCount)
-        {
-            engine.Configuration.SetNumber("max-recognition-thread-count", threadCount);
+            engine.Configuration.SetBoolean("export.jiix.style",true);
+            engine.Configuration.SetBoolean("export.jiix.primitive",true);
         }
 
         private static async void OnUnhandledException(object sender, Windows.UI.Xaml.UnhandledExceptionEventArgs e)
