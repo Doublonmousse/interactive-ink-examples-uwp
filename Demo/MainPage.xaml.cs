@@ -17,6 +17,8 @@ using Windows.Networking.NetworkOperators;
 using Windows.Networking.Sockets;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using System.IO.Compression;
+
 
 
 namespace MyScript.IInk.Demo
@@ -348,6 +350,13 @@ namespace MyScript.IInk.Demo
                     Editor.Part = part;
                     _packageName = part.Id.ToString();
                     Title.Text = _packageName + " - " + part.Type;
+
+                    //unzip
+                    await Task.Run(() =>
+                        {
+                            ZipFile.ExtractToDirectory(filePath2,localFolder.Path.ToString() + "//" + "unzip");
+                        });
+                    
                 }
                 catch (Exception ex)
                 {
@@ -393,14 +402,12 @@ namespace MyScript.IInk.Demo
                 // Show export dialog
                 var fileName = await ChooseExportFilename(mimeTypes);
 
+                string filePath = null;
+
                 if (!string.IsNullOrEmpty(fileName))
                 {
-                    var folderpicker = new Windows.Storage.Pickers.FolderPicker();
-                    var output_folder = Windows.Storage.DownloadsFolder;
                     var localFolder = Windows.Storage.ApplicationData.Current.LocalFolder;
-
                     filePath = System.IO.Path.Combine(localFolder.Path.ToString(), fileName);
-                    filePathExport = System.IO.Path.Combine(output_folder.Path.ToString(), fileName);
                 }
 
                 try
@@ -430,133 +437,132 @@ namespace MyScript.IInk.Demo
                 }
             }
         }
-    }
 
-    private void ClosePackage()
-    {
-        var part = Editor.Part;
-        var package = part?.Package;
-        Editor.Part = null;
-        part?.Dispose();
-        package?.Dispose();
-        Title.Text = "";
-    }
-
-    private async void NewFile()
-    {
-        var cancelable = Editor.Part != null;
-        var partType = Editor.Engine.SupportedPartTypes.ToList()[5];
-        if (string.IsNullOrEmpty(partType))
-            return;
-
-        ResetSelection();
-
-        try
+        private void ClosePackage()
         {
-            // Save and close current package
-            ClosePackage();
-
-            // Create package and part
-            var packageName = MakeUntitledFilename();
-            var package = Editor.Engine.CreatePackage(packageName);
-            var part = package.CreatePart(partType);
-            Editor.Part = part;
-            _packageName = System.IO.Path.GetFileName(packageName);
-            Title.Text = _packageName + " - " + part.Type;
+            var part = Editor.Part;
+            var package = part?.Package;
+            Editor.Part = null;
+            part?.Dispose();
+            package?.Dispose();
+            Title.Text = "";
         }
-        catch (Exception ex)
+
+        private async void NewFile()
         {
-            ClosePackage();
+            var cancelable = Editor.Part != null;
+            var partType = Editor.Engine.SupportedPartTypes.ToList()[5];
+            if (string.IsNullOrEmpty(partType))
+                return;
 
-            var msgDialog = new MessageDialog(ex.ToString());
-            await msgDialog.ShowAsync();
-        }
-    }
+            ResetSelection();
 
-    private string MakeUntitledFilename()
-    {
-        var localFolder = Windows.Storage.ApplicationData.Current.LocalFolder.Path;
-        var tempFolder = Editor.Engine.Configuration.GetString("content-package.temp-folder");
-        string fileName;
-        string folderName;
-
-        do
-        {
-            var baseName = "File" + (++_filenameIndex) + ".iink";
-            fileName = System.IO.Path.Combine(localFolder, baseName);
-            var tempName = baseName + "-file";
-            folderName = System.IO.Path.Combine(tempFolder, tempName);
-        }
-        while (System.IO.File.Exists(fileName) || System.IO.File.Exists(folderName));
-
-        return fileName;
-    }
-    private async System.Threading.Tasks.Task<string> ChooseExportFilename(MimeType[] mimeTypes)
-    {
-        var nameTextBlock = new TextBlock
-        {
-            Text = "Enter Export File Name",
-            MaxLines = 1,
-            TextWrapping = TextWrapping.NoWrap,
-            HorizontalAlignment = HorizontalAlignment.Left,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 10, 0, 0),
-            Width = 300
-        };
-
-        var nameTextBox = new TextBox
-        {
-            Text = "",
-            AcceptsReturn = false,
-            MaxLength = 1024 * 1024,
-            TextWrapping = TextWrapping.NoWrap,
-            HorizontalAlignment = HorizontalAlignment.Left,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 5, 0, 10),
-            Width = 300
-        };
-
-        var panel = new StackPanel
-        {
-            Margin = new Thickness(10),
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-
-        panel.Children.Add(nameTextBlock);
-        panel.Children.Add(nameTextBox);
-
-
-        var dialog = new ContentDialog
-        {
-            Title = "Export",
-            Content = panel,
-            PrimaryButtonText = "OK",
-            SecondaryButtonText = "Cancel",
-            IsPrimaryButtonEnabled = true,
-            IsSecondaryButtonEnabled = true
-        };
-
-        var result = await dialog.ShowAsync();
-        if (result == ContentDialogResult.Primary)
-        {
-            var fileName = nameTextBox.Text;
-            var extensions = MimeTypeF.GetFileExtensions(mimeTypes[0]).Split(',');
-
-            int ext;
-            for (ext = 0; ext < extensions.Count(); ++ext)
+            try
             {
-                if (fileName.EndsWith(extensions[ext], StringComparison.OrdinalIgnoreCase))
-                    break;
-            }
+                // Save and close current package
+                ClosePackage();
 
-            if (ext >= extensions.Count())
-                fileName += extensions[0];
+                // Create package and part
+                var packageName = MakeUntitledFilename();
+                var package = Editor.Engine.CreatePackage(packageName);
+                var part = package.CreatePart(partType);
+                Editor.Part = part;
+                _packageName = System.IO.Path.GetFileName(packageName);
+                Title.Text = _packageName + " - " + part.Type;
+            }
+            catch (Exception ex)
+            {
+                ClosePackage();
+
+                var msgDialog = new MessageDialog(ex.ToString());
+                await msgDialog.ShowAsync();
+            }
+        }
+
+        private string MakeUntitledFilename()
+        {
+            var localFolder = Windows.Storage.ApplicationData.Current.LocalFolder.Path;
+            var tempFolder = Editor.Engine.Configuration.GetString("content-package.temp-folder");
+            string fileName;
+            string folderName;
+
+            do
+            {
+                var baseName = "File" + (++_filenameIndex) + ".iink";
+                fileName = System.IO.Path.Combine(localFolder, baseName);
+                var tempName = baseName + "-file";
+                folderName = System.IO.Path.Combine(tempFolder, tempName);
+            }
+            while (System.IO.File.Exists(fileName) || System.IO.File.Exists(folderName));
 
             return fileName;
         }
+        private async System.Threading.Tasks.Task<string> ChooseExportFilename(MimeType[] mimeTypes)
+        {
+            var nameTextBlock = new TextBlock
+            {
+                Text = "Enter Export File Name",
+                MaxLines = 1,
+                TextWrapping = TextWrapping.NoWrap,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 10, 0, 0),
+                Width = 300
+            };
 
-        return null;
+            var nameTextBox = new TextBox
+            {
+                Text = "",
+                AcceptsReturn = false,
+                MaxLength = 1024 * 1024,
+                TextWrapping = TextWrapping.NoWrap,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 5, 0, 10),
+                Width = 300
+            };
+
+            var panel = new StackPanel
+            {
+                Margin = new Thickness(10),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+
+            panel.Children.Add(nameTextBlock);
+            panel.Children.Add(nameTextBox);
+
+
+            var dialog = new ContentDialog
+            {
+                Title = "Export",
+                Content = panel,
+                PrimaryButtonText = "OK",
+                SecondaryButtonText = "Cancel",
+                IsPrimaryButtonEnabled = true,
+                IsSecondaryButtonEnabled = true
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                var fileName = nameTextBox.Text;
+                var extensions = MimeTypeF.GetFileExtensions(mimeTypes[0]).Split(',');
+
+                int ext;
+                for (ext = 0; ext < extensions.Count(); ++ext)
+                {
+                    if (fileName.EndsWith(extensions[ext], StringComparison.OrdinalIgnoreCase))
+                        break;
+                }
+
+                if (ext >= extensions.Count())
+                    fileName += extensions[0];
+
+                return fileName;
+            }
+
+            return null;
+        }
     }
-}
 }
