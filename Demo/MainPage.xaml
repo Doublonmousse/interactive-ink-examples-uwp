@@ -20,8 +20,7 @@
             <AppBarButton Label="Clear" Click="AppBar_ClearButton_Click" />
             <AppBarButton Icon="NewFolder" Label="New" Click="AppBar_NewPackageButton_Click" />
             <AppBarButton Icon="OpenFile" Label="Open" Click="AppBar_OpenPackageButton_Click" />
-            <AppBarButton Icon="Add" Label="Export" Click="AppBar_Export_Click" />
-
+            
             <CommandBar.Content>
                 <TextBlock x:Name="Title" Margin="12,14" FontFamily="bold" FontSize="16" />
             </CommandBar.Content>

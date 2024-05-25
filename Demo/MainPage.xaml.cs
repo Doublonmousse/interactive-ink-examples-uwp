@@ -81,6 +81,7 @@ namespace MyScript.IInk.Demo
 
             InitializeComponent();
             Initialize(App.Engine);
+            Export_content(); // start the selection
         }
 
         private void Initialize(Engine engine)
@@ -287,6 +288,11 @@ namespace MyScript.IInk.Demo
 
         private async void AppBar_OpenPackageButton_Click(object sender, RoutedEventArgs e)
         {
+            Export_content();
+        }
+        
+        async void Export_content()
+        {
             //await Windows.System.Launcher.LaunchUriAsync(new Uri("ms-settings:privacy-broadfilesystemaccess"));
 
             List<StorageFile> files = new List<StorageFile>();
@@ -295,7 +301,12 @@ namespace MyScript.IInk.Demo
             {
                 SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.Downloads
             };
-            folderPicker.FileTypeFilter.Add("*");
+            folderPicker.FileTypeFilter.Add(".nebo");
+            folderPicker.CommitButtonText = "select nebo files to convert";
+
+            // create input and output directories
+            await Windows.Storage.ApplicationData.Current.LocalFolder.CreateFolderAsync("input", CreationCollisionOption.OpenIfExists);
+            await Windows.Storage.ApplicationData.Current.LocalFolder.CreateFolderAsync("output", CreationCollisionOption.OpenIfExists);
 
             var files_sel = await folderPicker.PickMultipleFilesAsync(); //should be file
             if (files_sel != null)
@@ -311,63 +322,75 @@ namespace MyScript.IInk.Demo
                 if (files.Count == 0)
                     return;
 
-                var firstfile = files[0];
 
-                ResetSelection();
 
-                try
+                foreach (StorageFile current_file in files)
                 {
-                    // close current package
-                    ClosePackage();
+                    ResetSelection();
+                    try
+                    {
+                        // close current package
+                        ClosePackage();
 
-                    // Open package and select first part
-                    // Can't open files that are outside the app folder
-                    // so we HAVE to open it as a stream and copy things into the app folder
+                        // Open package and select first part
+                        // Can't open files that are outside the app folder
+                        // so we HAVE to open it as a stream and copy things into the app folder
 
-                    //Debug.WriteLine(Windows.Storage.ApplicationData.Current.LocalFolder.Path + "\\" +  fileName);
-
-
-                    // get the file
-                    var localFolder = Windows.Storage.ApplicationData.Current.LocalFolder;
-                    var filePath = System.IO.Path.Combine(localFolder.Path.ToString(), firstfile.Name);
-
-                    var sample_file = File.Create(filePath);
-
-                    // need to force the copy to happen SOMEHOW
-                    await copy_stream(firstfile, sample_file);
-                    // wait until the file is ready
-
-                    var filePath2 = System.IO.Path.Combine(localFolder.Path.ToString(), firstfile.Name.ToString());
-                    var package = Editor.Engine.OpenPackage(filePath2);
-
-                    Debug.WriteLine("number of parts", package.PartCount.ToString());
-                    // we should iterate over the parts [TODO]
-                    var part = package.GetPart(0);
-                    Debug.WriteLine(part.Metadata.ToString());
-
-                    // we should get the name of the part, or at least the ID
-                    Debug.WriteLine(part.Id.ToString());
-                    Editor.Part = part;
-                    _packageName = part.Id.ToString();
-                    Title.Text = _packageName + " - " + part.Type;
-
-                    //unzip
-                    await Task.Run(() =>
+                        // copy the file into "input"
+                        var localFolder = Windows.Storage.ApplicationData.Current.LocalFolder;
+                        var filePath = System.IO.Path.Combine(localFolder.Path.ToString() + "//input//", current_file.Name);
+                        // we do an input and output folder to be cleaner
+                        try
                         {
-                            ZipFile.ExtractToDirectory(filePath2,localFolder.Path.ToString() + "//" + "unzip");
-                        });
-                    
-                }
-                catch (Exception ex)
-                {
-                    ClosePackage();
+                            var sample_file = File.Create(filePath);
+                            await copy_stream(current_file, sample_file);
+                        }
+                        catch
+                        {
+                            Debug.WriteLine("File already copied, skipping");
+                        }
+                        // wait until the file is copied to file before opening it
 
-                    var msgDialog = new MessageDialog(ex.ToString());
-                    await msgDialog.ShowAsync();
+                        var package = Editor.Engine.OpenPackage(filePath);
+
+                        Debug.WriteLine("number of parts", package.PartCount.ToString());
+
+
+                        //unzip the full package
+                        await Task.Run(() =>
+                        {
+                            ZipFile.ExtractToDirectory(filePath, localFolder.Path.ToString() + "//" + "output" + "//" + current_file.Name.ToString(), true);
+                        });
+
+                        // we should iterate over the parts
+                        for (int i = 0; i < package.PartCount; i++)
+                        {
+                            var part = package.GetPart(i);
+                            Debug.WriteLine("names : ", current_file.Name.ToString(), part.Id.ToString()); //verify names
+
+                            Editor.Part = part;
+                            _packageName = part.Id.ToString();
+                            Title.Text = _packageName + " - " + part.Type;
+                            AppBar_Export_Click(current_file.Name, part.Id.ToString());
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        ClosePackage();
+
+                        var msgDialog = new MessageDialog(ex.ToString());
+                        await msgDialog.ShowAsync();
+                    }
+
                 }
 
                 // Reset viewing parameters
                 UcEditor.ResetView(false);
+                //display the tmp folder
+
+                StorageFolder output = await StorageFolder.GetFolderFromPathAsync(System.IO.Path.Combine(ApplicationData.Current.LocalFolder.Path.ToString(), "output"));
+                await Windows.System.Launcher.LaunchFolderAsync(output);
+
 
             }
         }
@@ -382,61 +405,57 @@ namespace MyScript.IInk.Demo
             file_target.Close();
         }
 
-        private async void AppBar_Export_Click(object sender, RoutedEventArgs e)
+        private async void AppBar_Export_Click(string package_name, string part_id)
         {
+            // init variables
+            IContentSelection contentSelection = null;
+            string filePath = null;
+
             var part = Editor.Part;
             if (part == null)
                 return;
             using (var rootBlock = Editor.GetRootBlock())
             {
-                IContentSelection contentSelection = rootBlock;
+                contentSelection = rootBlock;
 
                 if (contentSelection == null)
                 {
-                    Debug.WriteLine("empty selection");
+                    Debug.WriteLine("empty selection/file, skipping");
                     return;
                 }
 
                 MimeType[] mimeTypes = new MimeType[] { MimeType.JIIX };
 
-                // Show export dialog
-                var fileName = await ChooseExportFilename(mimeTypes);
+                var localFolder = Windows.Storage.ApplicationData.Current.LocalFolder;
+                filePath = System.IO.Path.Combine(localFolder.Path.ToString() + "//output//" + package_name + "//" + "pages" + "//" + part_id + "//", part_id + ".jiix");
+            }
 
-                string filePath = null;
-
-                if (!string.IsNullOrEmpty(fileName))
+            try
+            {
+                var imagePainter = new ImagePainter
                 {
-                    var localFolder = Windows.Storage.ApplicationData.Current.LocalFolder;
-                    filePath = System.IO.Path.Combine(localFolder.Path.ToString(), fileName);
-                }
+                    ImageLoader = UcEditor.ImageLoader
+                };
 
+                Editor.WaitForIdle();
+
+                // check if the file already exist or not
                 try
                 {
-                    var imagePainter = new ImagePainter
-                    {
-                        ImageLoader = UcEditor.ImageLoader
-                    };
-
-                    Editor.WaitForIdle();
                     Editor.Export_(contentSelection, filePath, imagePainter);
-
-
-                    //access/creating of the file (only for the export)
-                    var filenew = await Windows.Storage.DownloadsFolder.CreateFileAsync(fileName);
-
-                    //read back the exported file to get data out
-                    var buffer = await FileIO.ReadBufferAsync(await Windows.Storage.StorageFile.GetFileFromPathAsync(filePath));
-
-                    //recreate the file stream
-                    await Windows.Storage.FileIO.WriteBufferAsync(filenew, buffer);
                 }
-                catch (Exception ex)
+                catch
                 {
-                    var msgDialog = new MessageDialog(ex.ToString());
-                    await msgDialog.ShowAsync();
+                    Debug.WriteLine("the file already exists, skipping");
                 }
             }
+            catch (Exception ex)
+            {
+                var msgDialog = new MessageDialog(ex.ToString());
+                await msgDialog.ShowAsync();
+            }
         }
+
 
         private void ClosePackage()
         {
@@ -497,72 +516,7 @@ namespace MyScript.IInk.Demo
 
             return fileName;
         }
-        private async System.Threading.Tasks.Task<string> ChooseExportFilename(MimeType[] mimeTypes)
-        {
-            var nameTextBlock = new TextBlock
-            {
-                Text = "Enter Export File Name",
-                MaxLines = 1,
-                TextWrapping = TextWrapping.NoWrap,
-                HorizontalAlignment = HorizontalAlignment.Left,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 10, 0, 0),
-                Width = 300
-            };
 
-            var nameTextBox = new TextBox
-            {
-                Text = "",
-                AcceptsReturn = false,
-                MaxLength = 1024 * 1024,
-                TextWrapping = TextWrapping.NoWrap,
-                HorizontalAlignment = HorizontalAlignment.Left,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 5, 0, 10),
-                Width = 300
-            };
-
-            var panel = new StackPanel
-            {
-                Margin = new Thickness(10),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-
-            panel.Children.Add(nameTextBlock);
-            panel.Children.Add(nameTextBox);
-
-
-            var dialog = new ContentDialog
-            {
-                Title = "Export",
-                Content = panel,
-                PrimaryButtonText = "OK",
-                SecondaryButtonText = "Cancel",
-                IsPrimaryButtonEnabled = true,
-                IsSecondaryButtonEnabled = true
-            };
-
-            var result = await dialog.ShowAsync();
-            if (result == ContentDialogResult.Primary)
-            {
-                var fileName = nameTextBox.Text;
-                var extensions = MimeTypeF.GetFileExtensions(mimeTypes[0]).Split(',');
-
-                int ext;
-                for (ext = 0; ext < extensions.Count(); ++ext)
-                {
-                    if (fileName.EndsWith(extensions[ext], StringComparison.OrdinalIgnoreCase))
-                        break;
-                }
-
-                if (ext >= extensions.Count())
-                    fileName += extensions[0];
-
-                return fileName;
-            }
-
-            return null;
-        }
     }
 }
+
